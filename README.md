@@ -26,26 +26,33 @@ Add to `~/.claude/mcp.json`:
 }
 ```
 
+### Options
+
+| Flag | Description |
+|------|-------------|
+| `--workspace <path>` | Path to TypeScript project root (default: `cwd`) |
+| `--no-cache` | Bypass the symbol index disk cache |
+
 ## Tools
 
 ### Navigation
-- `goto_definition` — Find where a symbol is defined
-- `find_references` — Find all locations where a symbol is used
-- `workspace_symbols` — Search symbols across the project
-- `document_symbols` — List symbols in a file (outline)
+- `goto_definition` — Jump to a symbol's definition by position
+- `find_references` — Find all usages of a symbol by position
+- `workspace_symbols` — Find a symbol across the project by exact name
+- `document_symbols` — List all symbols defined in a file
 
 ### Impact Analysis
-- `call_hierarchy` — Find incoming/outgoing calls
-- `type_hierarchy` — Find implementations of interfaces
-- `impact_analysis` — Pre-modification blast radius
+- `call_hierarchy` — Find callers or callees of a function
+- `type_hierarchy` — Find implementations of an interface or subclasses
+- `impact_analysis` — Assess blast radius before modifying a symbol
 
 ### Code Intelligence
-- `get_type_info` — Type information and JSDoc metadata
-- `signature_help` — Function parameters and overloads
-- `rename_symbol` — Safe rename locations
+- `get_type_info` — Get resolved type, docs, and JSDoc tags
+- `signature_help` — Get parameter names, types, and overloads
+- `rename_symbol` — Compute all edits needed to rename a symbol
 
 ### Diagnostics
-- `diagnostics` — Errors and warnings without running tsc
+- `diagnostics` — Get TypeScript errors and warnings
 
 ## Scripts
 
