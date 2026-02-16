@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { TsMcpLanguageService } from '../../src/service/language-service'
-import { getTypeInfo } from '../../src/tools/intelligence'
+import { getTypeInfo, renameSymbol } from '../../src/tools/intelligence'
 import path from 'node:path'
 
 const fixtureDir = path.resolve(__dirname, '../fixtures/sample-project')
@@ -43,6 +43,21 @@ describe('intelligence tools', () => {
       const result = getTypeInfo(svc, typesFile, line, column)
       expect(result).toBeDefined()
       expect(result!.jsdoc?.deprecated).toBeDefined()
+    })
+  })
+
+  describe('renameSymbol', () => {
+    it('finds all rename locations for getUserOrThrow', () => {
+      const content = svc.getFileContent(serviceFile)
+      const fnIndex = content.indexOf('async function getUserOrThrow')
+      const nameIdx = content.indexOf('getUserOrThrow', fnIndex)
+      const lines = content.slice(0, nameIdx).split('\n')
+      const line = lines.length
+      const column = lines[lines.length - 1].length + 1
+
+      const result = renameSymbol(svc, serviceFile, line, column, 'getRequiredUser')
+      expect(result.locations.length).toBeGreaterThanOrEqual(2)
+      expect(result.locations.some(l => l.file.includes('user-controller'))).toBe(true)
     })
   })
 })

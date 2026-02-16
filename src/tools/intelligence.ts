@@ -73,6 +73,57 @@ export function signatureHelp(
   }
 }
 
+export interface RenameResult {
+  oldName: string
+  newName: string
+  locations: Array<{
+    file: string
+    line: number
+    column: number
+    text: string
+  }>
+}
+
+export function renameSymbol(
+  svc: TsMcpLanguageService,
+  file: string,
+  line: number,
+  column: number,
+  newName: string,
+): RenameResult {
+  const fileName = svc.resolveFileName(file)
+  const position = svc.resolvePosition(fileName, line, column)
+  const renameLocations = svc.getRawService().findRenameLocations(
+    fileName,
+    position,
+    false,
+    false,
+  )
+
+  const content = svc.getFileContent(fileName)
+  const oldName = content.slice(position, position + (renameLocations?.[0]?.textSpan.length ?? 0))
+
+  if (!renameLocations) {
+    return { oldName, newName, locations: [] }
+  }
+
+  return {
+    oldName,
+    newName,
+    locations: renameLocations.map((loc) => {
+      const fileContent = svc.getFileContent(loc.fileName) || svc.getTs().sys.readFile(loc.fileName) || ''
+      const locPos = toLineColumn(fileContent, loc.textSpan.start)
+      const text = fileContent.slice(loc.textSpan.start, loc.textSpan.start + loc.textSpan.length)
+      return {
+        file: loc.fileName,
+        line: locPos.line,
+        column: locPos.column,
+        text,
+      }
+    }),
+  }
+}
+
 export function registerIntelligenceTools(
   mcpServer: McpServer,
   svc: TsMcpLanguageService,
@@ -103,6 +154,23 @@ export function registerIntelligenceTools(
     },
     async ({ file, line, column }) => {
       const result = signatureHelp(svc, file, line, column)
+      return {
+        content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+      }
+    },
+  )
+
+  mcpServer.tool(
+    'rename_symbol',
+    'Find all locations that need to change when renaming a symbol. Safer than find-and-replace.',
+    {
+      file: z.string().describe('Absolute or workspace-relative file path'),
+      line: z.number().describe('1-based line number'),
+      column: z.number().describe('1-based column number'),
+      newName: z.string().describe('New name for the symbol'),
+    },
+    async ({ file, line, column, newName }) => {
+      const result = renameSymbol(svc, file, line, column, newName)
       return {
         content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
       }
