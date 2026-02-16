@@ -23,8 +23,8 @@
 **Step 1: Create project directory and initialize**
 
 ```bash
-mkdir -p /Users/hyukho/Desktop/Workspace/ts-mcp
-cd /Users/hyukho/Desktop/Workspace/ts-mcp
+mkdir -p ts-mcp
+cd ts-mcp
 git init
 ```
 
