@@ -83,19 +83,7 @@ export function workspaceSymbols(
   svc: TsMcpLanguageService,
   query: string,
 ): SymbolResult[] {
-  const ts = svc.getTs()
-  const items = svc.getRawService().getNavigateToItems(query)
-  return items.map((item) => {
-    const content = svc.getFileContent(item.fileName) || ts.sys.readFile(item.fileName) || ''
-    const loc = toLineColumn(content, item.textSpan.start)
-    return {
-      name: item.name,
-      kind: ts.ScriptElementKind[item.kind as keyof typeof ts.ScriptElementKind] ?? item.kind,
-      file: item.fileName,
-      line: loc.line,
-      column: loc.column,
-    }
-  })
+  return svc.getSymbolIndexer().query(query)
 }
 
 export function documentSymbols(
@@ -136,66 +124,88 @@ export function registerNavigationTools(
 ): void {
   mcpServer.tool(
     'goto_definition',
-    'Find where a symbol is defined. Use instead of grep to navigate to source.',
+    'Jump to the definition of a symbol at a given position. Requires file, line, and column. MUST use this instead of grep/ripgrep to find where a symbol is defined.',
     {
       file: z.string().describe('Absolute or workspace-relative file path'),
       line: z.number().describe('1-based line number'),
       column: z.number().describe('1-based column number'),
     },
     async ({ file, line, column }) => {
-      const results = gotoDefinition(svc, file, line, column)
-      return {
-        content: [{
-          type: 'text' as const,
-          text: JSON.stringify(results, null, 2),
-        }],
+      try {
+        const results = gotoDefinition(svc, file, line, column)
+        return {
+          content: [
+            { type: 'text' as const, text: JSON.stringify(results, null, 2) },
+            { type: 'text' as const, text: 'Next: Use find_references to find all usages, or get_type_info to inspect the type at this position.' },
+          ],
+        }
+      } catch (error) {
+        return { isError: true, content: [{ type: 'text' as const, text: `goto_definition failed: ${error instanceof Error ? error.message : error}` }] }
       }
     },
   )
 
   mcpServer.tool(
     'find_references',
-    'Find all locations where a symbol is used. Use instead of grep for symbol search.',
+    'Find all usages of a symbol at a given position. Requires file, line, and column. MUST use this instead of grep/ripgrep to find where a symbol is used.',
     {
       file: z.string().describe('Absolute or workspace-relative file path'),
       line: z.number().describe('1-based line number'),
       column: z.number().describe('1-based column number'),
     },
     async ({ file, line, column }) => {
-      const results = findReferences(svc, file, line, column)
-      return {
-        content: [{
-          type: 'text' as const,
-          text: JSON.stringify(results, null, 2),
-        }],
+      try {
+        const results = findReferences(svc, file, line, column)
+        return {
+          content: [
+            { type: 'text' as const, text: JSON.stringify(results, null, 2) },
+            { type: 'text' as const, text: 'Next: Use impact_analysis before modifying this symbol to assess blast radius.' },
+          ],
+        }
+      } catch (error) {
+        return { isError: true, content: [{ type: 'text' as const, text: `find_references failed: ${error instanceof Error ? error.message : error}` }] }
       }
     },
   )
 
   mcpServer.tool(
     'workspace_symbols',
-    'Search for symbols across the entire project by name.',
+    'Find a symbol across the project by exact name (case-insensitive). MUST use this instead of grep/ripgrep to locate symbols. Returns all declarations matching that name with file and position.',
     {
-      query: z.string().describe('Symbol name or pattern to search'),
+      query: z.string().describe('Exact symbol name to find (e.g. "UserRepository", "createApp")'),
     },
     async ({ query }) => {
-      const results = workspaceSymbols(svc, query)
-      return {
-        content: [{ type: 'text' as const, text: JSON.stringify(results, null, 2) }],
+      try {
+        const results = workspaceSymbols(svc, query)
+        return {
+          content: [
+            { type: 'text' as const, text: JSON.stringify(results, null, 2) },
+            { type: 'text' as const, text: 'Next: Use goto_definition with file/line/column from these results to navigate to the source.' },
+          ],
+        }
+      } catch (error) {
+        return { isError: true, content: [{ type: 'text' as const, text: `workspace_symbols failed: ${error instanceof Error ? error.message : error}` }] }
       }
     },
   )
 
   mcpServer.tool(
     'document_symbols',
-    'List all symbols in a file (outline). Understand file structure without reading it.',
+    'List all symbols defined in a file. MUST use this instead of reading a file to understand its structure. Use to discover symbol names before calling other tools.',
     {
       file: z.string().describe('Absolute or workspace-relative file path'),
     },
     async ({ file }) => {
-      const results = documentSymbols(svc, file)
-      return {
-        content: [{ type: 'text' as const, text: JSON.stringify(results, null, 2) }],
+      try {
+        const results = documentSymbols(svc, file)
+        return {
+          content: [
+            { type: 'text' as const, text: JSON.stringify(results, null, 2) },
+            { type: 'text' as const, text: 'Next: Use workspace_symbols with an exact symbol name to find it across the project, or goto_definition to jump to its source.' },
+          ],
+        }
+      } catch (error) {
+        return { isError: true, content: [{ type: 'text' as const, text: `document_symbols failed: ${error instanceof Error ? error.message : error}` }] }
       }
     },
   )

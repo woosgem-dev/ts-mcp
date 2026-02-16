@@ -103,7 +103,7 @@ export function registerImpactTools(
 ): void {
   mcpServer.tool(
     'call_hierarchy',
-    'Find incoming or outgoing calls for a function. Shows who calls this function (incoming) or what this function calls (outgoing).',
+    'Find callers (incoming) or callees (outgoing) of a function at a given position.',
     {
       file: z.string().describe('Absolute or workspace-relative file path'),
       line: z.number().describe('1-based line number'),
@@ -111,41 +111,53 @@ export function registerImpactTools(
       direction: z.enum(['incoming', 'outgoing']).describe('Call direction'),
     },
     async ({ file, line, column, direction }) => {
-      const results = callHierarchy(svc, file, line, column, direction)
-      return {
-        content: [{ type: 'text' as const, text: JSON.stringify(results, null, 2) }],
+      try {
+        const results = callHierarchy(svc, file, line, column, direction)
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(results, null, 2) }],
+        }
+      } catch (error) {
+        return { isError: true, content: [{ type: 'text' as const, text: `call_hierarchy failed: ${error instanceof Error ? error.message : error}` }] }
       }
     },
   )
 
   mcpServer.tool(
     'type_hierarchy',
-    'Find all implementations of an interface or subtypes of a class.',
+    'Find all implementations of an interface or subclasses of a class at a given position.',
     {
       file: z.string().describe('Absolute or workspace-relative file path'),
       line: z.number().describe('1-based line number'),
       column: z.number().describe('1-based column number'),
     },
     async ({ file, line, column }) => {
-      const results = typeHierarchy(svc, file, line, column)
-      return {
-        content: [{ type: 'text' as const, text: JSON.stringify(results, null, 2) }],
+      try {
+        const results = typeHierarchy(svc, file, line, column)
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(results, null, 2) }],
+        }
+      } catch (error) {
+        return { isError: true, content: [{ type: 'text' as const, text: `type_hierarchy failed: ${error instanceof Error ? error.message : error}` }] }
       }
     },
   )
 
   mcpServer.tool(
     'impact_analysis',
-    'Analyze blast radius before modifying a symbol. Shows all references, callers, implementations, and risk level.',
+    'Assess blast radius before modifying a symbol. Returns references, callers, implementations, and risk level. MUST run this before any refactoring.',
     {
       file: z.string().describe('Absolute or workspace-relative file path'),
       line: z.number().describe('1-based line number'),
       column: z.number().describe('1-based column number'),
     },
     async ({ file, line, column }) => {
-      const result = analyzeImpact(svc, file, line, column)
-      return {
-        content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+      try {
+        const result = analyzeImpact(svc, file, line, column)
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+        }
+      } catch (error) {
+        return { isError: true, content: [{ type: 'text' as const, text: `impact_analysis failed: ${error instanceof Error ? error.message : error}` }] }
       }
     },
   )

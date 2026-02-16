@@ -130,39 +130,47 @@ export function registerIntelligenceTools(
 ): void {
   mcpServer.tool(
     'get_type_info',
-    'Get type information, documentation, and JSDoc metadata for a symbol.',
+    'Get the resolved type, documentation, and JSDoc tags for a symbol at a given position.',
     {
       file: z.string().describe('Absolute or workspace-relative file path'),
       line: z.number().describe('1-based line number'),
       column: z.number().describe('1-based column number'),
     },
     async ({ file, line, column }) => {
-      const result = getTypeInfo(svc, file, line, column)
-      return {
-        content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+      try {
+        const result = getTypeInfo(svc, file, line, column)
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+        }
+      } catch (error) {
+        return { isError: true, content: [{ type: 'text' as const, text: `get_type_info failed: ${error instanceof Error ? error.message : error}` }] }
       }
     },
   )
 
   mcpServer.tool(
     'signature_help',
-    'Get function signature, parameter info, and overloads at a call site.',
+    'Get parameter names, types, and overloads for a function call at a given position.',
     {
       file: z.string().describe('Absolute or workspace-relative file path'),
       line: z.number().describe('1-based line number'),
       column: z.number().describe('1-based column number'),
     },
     async ({ file, line, column }) => {
-      const result = signatureHelp(svc, file, line, column)
-      return {
-        content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+      try {
+        const result = signatureHelp(svc, file, line, column)
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+        }
+      } catch (error) {
+        return { isError: true, content: [{ type: 'text' as const, text: `signature_help failed: ${error instanceof Error ? error.message : error}` }] }
       }
     },
   )
 
   mcpServer.tool(
     'rename_symbol',
-    'Find all locations that need to change when renaming a symbol. Safer than find-and-replace.',
+    'Compute all edits needed to rename a symbol. Returns file paths and text changes to apply.',
     {
       file: z.string().describe('Absolute or workspace-relative file path'),
       line: z.number().describe('1-based line number'),
@@ -170,9 +178,16 @@ export function registerIntelligenceTools(
       newName: z.string().describe('New name for the symbol'),
     },
     async ({ file, line, column, newName }) => {
-      const result = renameSymbol(svc, file, line, column, newName)
-      return {
-        content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+      try {
+        const result = renameSymbol(svc, file, line, column, newName)
+        return {
+          content: [
+            { type: 'text' as const, text: JSON.stringify(result, null, 2) },
+            { type: 'text' as const, text: 'Apply all the file changes listed above. Run diagnostics after applying to verify no errors were introduced.' },
+          ],
+        }
+      } catch (error) {
+        return { isError: true, content: [{ type: 'text' as const, text: `rename_symbol failed: ${error instanceof Error ? error.message : error}` }] }
       }
     },
   )

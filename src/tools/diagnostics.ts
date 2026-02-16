@@ -67,14 +67,18 @@ export function registerDiagnosticsTools(
 ): void {
   mcpServer.tool(
     'diagnostics',
-    'Get TypeScript errors and warnings without running tsc. Works on a single file or entire project.',
+    'Get TypeScript errors and warnings. Pass a file for single-file check, or omit for the entire project.',
     {
       file: z.string().optional().describe('File path (omit for all files)'),
     },
     async ({ file }) => {
-      const results = getDiagnostics(svc, file)
-      return {
-        content: [{ type: 'text' as const, text: JSON.stringify(results, null, 2) }],
+      try {
+        const results = getDiagnostics(svc, file)
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(results, null, 2) }],
+        }
+      } catch (error) {
+        return { isError: true, content: [{ type: 'text' as const, text: `diagnostics failed: ${error instanceof Error ? error.message : error}` }] }
       }
     },
   )
