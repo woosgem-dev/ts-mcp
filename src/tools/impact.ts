@@ -2,6 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { TsMcpLanguageService } from '../service/language-service'
 import { toLineColumn } from '../service/position-utils'
+import { analyzeImpact } from '../service/impact-analyzer'
 
 export interface CallHierarchyResult {
   from: string
@@ -129,6 +130,22 @@ export function registerImpactTools(
       const results = typeHierarchy(svc, file, line, column)
       return {
         content: [{ type: 'text' as const, text: JSON.stringify(results, null, 2) }],
+      }
+    },
+  )
+
+  mcpServer.tool(
+    'impact_analysis',
+    'Analyze blast radius before modifying a symbol. Shows all references, callers, implementations, and risk level.',
+    {
+      file: z.string().describe('Absolute or workspace-relative file path'),
+      line: z.number().describe('1-based line number'),
+      column: z.number().describe('1-based column number'),
+    },
+    async ({ file, line, column }) => {
+      const result = analyzeImpact(svc, file, line, column)
+      return {
+        content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
       }
     },
   )
