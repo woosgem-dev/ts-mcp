@@ -1,7 +1,8 @@
 export function toOffset(content: string, line: number, column: number): number {
   const lines = content.split('\n')
   let offset = 0
-  for (let i = 0; i < line - 1; i++) {
+  const maxLine = Math.min(line - 1, lines.length)
+  for (let i = 0; i < maxLine; i++) {
     offset += lines[i].length + 1
   }
   return offset + column - 1

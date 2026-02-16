@@ -2,17 +2,20 @@ import ts from 'typescript'
 import path from 'node:path'
 import { loadTsConfig } from '../project/config-loader'
 import { resolveTypeScript } from '../project/resolve-typescript'
+import { SymbolIndexer } from './symbol-indexer'
 
 export class TsMcpLanguageService {
   private ts: typeof ts
   private service: ts.LanguageService
   private files: Map<string, { version: number; content: string }>
+  private symbolIndexer: SymbolIndexer | null = null
 
-  constructor(private workspace: string) {
-    this.ts = resolveTypeScript(workspace)
+  constructor(private workspace: string, private noCache = false) {
+    this.workspace = path.resolve(workspace)
+    this.ts = resolveTypeScript(this.workspace)
     this.files = new Map()
 
-    const config = loadTsConfig(workspace, this.ts)
+    const config = loadTsConfig(this.workspace, this.ts)
 
     for (const fileName of config.fileNames) {
       const content = this.ts.sys.readFile(fileName) ?? ''
@@ -31,7 +34,7 @@ export class TsMcpLanguageService {
           return this.ts.ScriptSnapshot.fromString(content)
         return undefined
       },
-      getCurrentDirectory: () => workspace,
+      getCurrentDirectory: () => this.workspace,
       getCompilationSettings: () => config.options,
       getDefaultLibFileName: (options) =>
         this.ts.getDefaultLibFilePath(options),
@@ -65,10 +68,14 @@ export class TsMcpLanguageService {
   }
 
   resolvePosition(fileName: string, line: number, column: number): number {
-    const content = this.getFileContent(fileName)
+    let content = this.getFileContent(fileName)
+    if (!content) {
+      content = this.ts.sys.readFile(fileName) ?? ''
+    }
     const lines = content.split('\n')
     let offset = 0
-    for (let i = 0; i < line - 1; i++) {
+    const maxLine = Math.min(line - 1, lines.length)
+    for (let i = 0; i < maxLine; i++) {
       offset += lines[i].length + 1
     }
     return offset + column - 1
@@ -77,6 +84,14 @@ export class TsMcpLanguageService {
   resolveFileName(filePath: string): string {
     if (path.isAbsolute(filePath)) return filePath
     return path.resolve(this.workspace, filePath)
+  }
+
+  getSymbolIndexer(): SymbolIndexer {
+    if (!this.symbolIndexer) {
+      this.symbolIndexer = new SymbolIndexer(this, this.workspace, this.noCache)
+      this.symbolIndexer.initialize()
+    }
+    return this.symbolIndexer
   }
 
   dispose(): void {
