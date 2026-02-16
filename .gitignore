@@ -2,6 +2,7 @@ node_modules/
 dist/
 *.tsbuildinfo
 .ts-mcp/
+.claude/
 .mcp.json
 bench.ts
 docs/test/
