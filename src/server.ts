@@ -5,13 +5,17 @@ import { registerImpactTools } from './tools/impact'
 import { registerIntelligenceTools } from './tools/intelligence'
 import { registerDiagnosticsTools } from './tools/diagnostics'
 
-export function createTsMcpServer(workspace: string) {
+export interface ServerOptions {
+  noCache?: boolean
+}
+
+export function createTsMcpServer(workspace: string, options?: ServerOptions) {
   const server = new McpServer({
     name: 'ts-mcp',
     version: '0.1.0',
   })
 
-  const languageService = new TsMcpLanguageService(workspace)
+  const languageService = new TsMcpLanguageService(workspace, options?.noCache)
 
   registerNavigationTools(server, languageService)
   registerImpactTools(server, languageService)
