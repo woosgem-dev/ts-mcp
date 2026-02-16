@@ -3,6 +3,8 @@ import { TsMcpLanguageService } from '../../src/service/language-service'
 import {
   gotoDefinition,
   findReferences,
+  workspaceSymbols,
+  documentSymbols,
 } from '../../src/tools/navigation'
 import path from 'node:path'
 
@@ -48,6 +50,29 @@ describe('navigation tools', () => {
       const result = findReferences(svc, serviceFile, line, column)
       // definition in user-service.ts, usage in user-controller.ts, export in index.ts
       expect(result.length).toBeGreaterThanOrEqual(2)
+    })
+  })
+
+  describe('workspaceSymbols', () => {
+    it('finds symbols matching a query', () => {
+      const result = workspaceSymbols(svc, 'UserRepository')
+      expect(result.length).toBeGreaterThan(0)
+      expect(result[0].name).toContain('UserRepository')
+    })
+
+    it('returns empty for no match', () => {
+      const result = workspaceSymbols(svc, 'NonExistentXYZ123')
+      expect(result).toEqual([])
+    })
+  })
+
+  describe('documentSymbols', () => {
+    it('returns symbols in types.ts', () => {
+      const result = documentSymbols(svc, typesFile)
+      const names = result.map(s => s.name)
+      expect(names).toContain('User')
+      expect(names).toContain('UserRepository')
+      expect(names).toContain('PaymentService')
     })
   })
 })

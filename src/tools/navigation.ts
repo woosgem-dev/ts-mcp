@@ -71,6 +71,65 @@ export function findReferences(
   return results
 }
 
+export interface SymbolResult {
+  name: string
+  kind: string
+  file: string
+  line: number
+  column: number
+}
+
+export function workspaceSymbols(
+  svc: TsMcpLanguageService,
+  query: string,
+): SymbolResult[] {
+  const ts = svc.getTs()
+  const items = svc.getRawService().getNavigateToItems(query)
+  return items.map((item) => {
+    const content = svc.getFileContent(item.fileName) || ts.sys.readFile(item.fileName) || ''
+    const loc = toLineColumn(content, item.textSpan.start)
+    return {
+      name: item.name,
+      kind: ts.ScriptElementKind[item.kind as keyof typeof ts.ScriptElementKind] ?? item.kind,
+      file: item.fileName,
+      line: loc.line,
+      column: loc.column,
+    }
+  })
+}
+
+export function documentSymbols(
+  svc: TsMcpLanguageService,
+  file: string,
+): SymbolResult[] {
+  const ts = svc.getTs()
+  const fileName = svc.resolveFileName(file)
+  const items = svc.getRawService().getNavigationBarItems(fileName)
+  const content = svc.getFileContent(fileName)
+  const results: SymbolResult[] = []
+
+  function flatten(items: typeof ts.NavigationBarItem extends never ? any[] : any[]) {
+    for (const item of items) {
+      if (item.text === '<global>') {
+        flatten(item.childItems)
+        continue
+      }
+      const loc = toLineColumn(content, item.spans[0].start)
+      results.push({
+        name: item.text,
+        kind: item.kind,
+        file: fileName,
+        line: loc.line,
+        column: loc.column,
+      })
+      if (item.childItems) flatten(item.childItems)
+    }
+  }
+
+  flatten(items)
+  return results
+}
+
 export function registerNavigationTools(
   mcpServer: McpServer,
   svc: TsMcpLanguageService,
@@ -109,6 +168,34 @@ export function registerNavigationTools(
           type: 'text' as const,
           text: JSON.stringify(results, null, 2),
         }],
+      }
+    },
+  )
+
+  mcpServer.tool(
+    'workspace_symbols',
+    'Search for symbols across the entire project by name.',
+    {
+      query: z.string().describe('Symbol name or pattern to search'),
+    },
+    async ({ query }) => {
+      const results = workspaceSymbols(svc, query)
+      return {
+        content: [{ type: 'text' as const, text: JSON.stringify(results, null, 2) }],
+      }
+    },
+  )
+
+  mcpServer.tool(
+    'document_symbols',
+    'List all symbols in a file (outline). Understand file structure without reading it.',
+    {
+      file: z.string().describe('Absolute or workspace-relative file path'),
+    },
+    async ({ file }) => {
+      const results = documentSymbols(svc, file)
+      return {
+        content: [{ type: 'text' as const, text: JSON.stringify(results, null, 2) }],
       }
     },
   )
