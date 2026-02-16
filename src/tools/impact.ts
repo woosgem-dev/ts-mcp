@@ -110,6 +110,7 @@ export function registerImpactTools(
       column: z.number().describe('1-based column number'),
       direction: z.enum(['incoming', 'outgoing']).describe('Call direction'),
     },
+    { readOnlyHint: true },
     async ({ file, line, column, direction }) => {
       try {
         const results = callHierarchy(svc, file, line, column, direction)
@@ -130,6 +131,7 @@ export function registerImpactTools(
       line: z.number().describe('1-based line number'),
       column: z.number().describe('1-based column number'),
     },
+    { readOnlyHint: true },
     async ({ file, line, column }) => {
       try {
         const results = typeHierarchy(svc, file, line, column)
@@ -150,6 +152,7 @@ export function registerImpactTools(
       line: z.number().describe('1-based line number'),
       column: z.number().describe('1-based column number'),
     },
+    { readOnlyHint: true },
     async ({ file, line, column }) => {
       try {
         const result = analyzeImpact(svc, file, line, column)

@@ -136,6 +136,7 @@ export function registerIntelligenceTools(
       line: z.number().describe('1-based line number'),
       column: z.number().describe('1-based column number'),
     },
+    { readOnlyHint: true },
     async ({ file, line, column }) => {
       try {
         const result = getTypeInfo(svc, file, line, column)
@@ -156,6 +157,7 @@ export function registerIntelligenceTools(
       line: z.number().describe('1-based line number'),
       column: z.number().describe('1-based column number'),
     },
+    { readOnlyHint: true },
     async ({ file, line, column }) => {
       try {
         const result = signatureHelp(svc, file, line, column)
@@ -177,6 +179,7 @@ export function registerIntelligenceTools(
       column: z.number().describe('1-based column number'),
       newName: z.string().describe('New name for the symbol'),
     },
+    { readOnlyHint: true },
     async ({ file, line, column, newName }) => {
       try {
         const result = renameSymbol(svc, file, line, column, newName)

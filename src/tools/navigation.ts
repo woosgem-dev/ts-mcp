@@ -130,6 +130,7 @@ export function registerNavigationTools(
       line: z.number().describe('1-based line number'),
       column: z.number().describe('1-based column number'),
     },
+    { readOnlyHint: true },
     async ({ file, line, column }) => {
       try {
         const results = gotoDefinition(svc, file, line, column)
@@ -153,6 +154,7 @@ export function registerNavigationTools(
       line: z.number().describe('1-based line number'),
       column: z.number().describe('1-based column number'),
     },
+    { readOnlyHint: true },
     async ({ file, line, column }) => {
       try {
         const results = findReferences(svc, file, line, column)
@@ -174,6 +176,7 @@ export function registerNavigationTools(
     {
       query: z.string().describe('Exact symbol name to find (e.g. "UserRepository", "createApp")'),
     },
+    { readOnlyHint: true },
     async ({ query }) => {
       try {
         const results = workspaceSymbols(svc, query)
@@ -195,6 +198,7 @@ export function registerNavigationTools(
     {
       file: z.string().describe('Absolute or workspace-relative file path'),
     },
+    { readOnlyHint: true },
     async ({ file }) => {
       try {
         const results = documentSymbols(svc, file)

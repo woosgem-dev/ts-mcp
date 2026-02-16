@@ -71,6 +71,7 @@ export function registerDiagnosticsTools(
     {
       file: z.string().optional().describe('File path (omit for all files)'),
     },
+    { readOnlyHint: true },
     async ({ file }) => {
       try {
         const results = getDiagnostics(svc, file)
