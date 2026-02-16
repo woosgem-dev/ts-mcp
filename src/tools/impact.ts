@@ -61,6 +61,41 @@ export function callHierarchy(
   return results
 }
 
+export interface TypeHierarchyResult {
+  name: string
+  file: string
+  line: number
+  column: number
+  kind: string
+}
+
+export function typeHierarchy(
+  svc: TsMcpLanguageService,
+  file: string,
+  line: number,
+  column: number,
+): TypeHierarchyResult[] {
+  const ts = svc.getTs()
+  const fileName = svc.resolveFileName(file)
+  const position = svc.resolvePosition(fileName, line, column)
+  const implementations = svc.getRawService().getImplementationAtPosition(fileName, position)
+
+  if (!implementations) return []
+
+  return implementations.map((impl) => {
+    const content = svc.getFileContent(impl.fileName) || ts.sys.readFile(impl.fileName) || ''
+    const loc = toLineColumn(content, impl.textSpan.start)
+    const text = content.slice(impl.textSpan.start, impl.textSpan.start + impl.textSpan.length)
+    return {
+      name: text,
+      file: impl.fileName,
+      line: loc.line,
+      column: loc.column,
+      kind: impl.kind,
+    }
+  })
+}
+
 export function registerImpactTools(
   mcpServer: McpServer,
   svc: TsMcpLanguageService,
@@ -76,6 +111,22 @@ export function registerImpactTools(
     },
     async ({ file, line, column, direction }) => {
       const results = callHierarchy(svc, file, line, column, direction)
+      return {
+        content: [{ type: 'text' as const, text: JSON.stringify(results, null, 2) }],
+      }
+    },
+  )
+
+  mcpServer.tool(
+    'type_hierarchy',
+    'Find all implementations of an interface or subtypes of a class.',
+    {
+      file: z.string().describe('Absolute or workspace-relative file path'),
+      line: z.number().describe('1-based line number'),
+      column: z.number().describe('1-based column number'),
+    },
+    async ({ file, line, column }) => {
+      const results = typeHierarchy(svc, file, line, column)
       return {
         content: [{ type: 'text' as const, text: JSON.stringify(results, null, 2) }],
       }
