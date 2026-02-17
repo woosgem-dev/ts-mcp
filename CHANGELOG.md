@@ -5,7 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [1.0.0] - 2026-02-17
+## [0.2.0-beta.1] - 2026-02-17
+
+### Added
+- `--init` command to generate `.claude/CLAUDE.md` snippet that tells agents to prefer ts-mcp tools over Grep/Read
+
+## [0.1.0] - 2026-02-17
 
 ### Added
 
