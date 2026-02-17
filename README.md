@@ -52,6 +52,7 @@ Add to `~/.claude/mcp.json`:
 - `get_type_info` — Get resolved type, docs, and JSDoc tags
 - `signature_help` — Get parameter names, types, and overloads
 - `rename_symbol` — Compute all edits needed to rename a symbol
+- `list_members` — List all properties and methods of a type at a position
 
 ### Diagnostics
 - `diagnostics` — Get TypeScript errors and warnings
