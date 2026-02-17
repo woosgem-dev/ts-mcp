@@ -12,16 +12,17 @@ describe('ts-mcp integration', () => {
   })
 
   afterAll(() => {
-    instance.languageService.dispose()
+    instance.provider.dispose()
   })
 
   it('creates server with all tools registered', () => {
     expect(instance.server).toBeDefined()
-    expect(instance.languageService).toBeDefined()
+    expect(instance.provider).toBeDefined()
   })
 
   it('language service can find definitions', () => {
-    const files = instance.languageService.getProjectFiles()
+    const services = instance.provider.all()
+    const files = services[0].getProjectFiles()
     expect(files.length).toBe(4)
   })
 })
