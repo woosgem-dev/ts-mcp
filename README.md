@@ -33,6 +33,8 @@ Add to `~/.claude/mcp.json`:
 | `--workspace <path>` | Path to TypeScript project root (default: `cwd`) |
 | `--no-cache` | Bypass the symbol index disk cache |
 | `--projects <paths>` | Comma-separated list of `tsconfig.json` paths for multi-project workspaces |
+| `--watch` | Watch for file changes and update in-memory cache |
+| `--init` | Generate `.claude/CLAUDE.md` snippet that tells agents to prefer ts-mcp tools |
 
 ## Tools
 
