@@ -125,6 +125,23 @@ export function renameSymbol(
   }
 }
 
+export interface MemberResult {
+  name: string
+  kind: string
+  type: string
+}
+
+export function listMembers(
+  svc: TsMcpLanguageService,
+  file: string,
+  line: number,
+  column: number,
+): MemberResult[] | undefined {
+  const members = svc.getMembers(file, line, column)
+  if (!members || members.length === 0) return undefined
+  return members
+}
+
 export function registerIntelligenceTools(
   mcpServer: McpServer,
   provider: ServiceProvider,
@@ -204,6 +221,37 @@ export function registerIntelligenceTools(
         }
       } catch (error) {
         return { isError: true, content: [{ type: 'text' as const, text: `rename_symbol failed: ${error instanceof Error ? error.message : error}` }] }
+      }
+    },
+  )
+
+  mcpServer.tool(
+    'list_members',
+    'List all properties and methods of the type at a given position. Use to discover what members an object or type has. Requires file, line, column. Next step: use get_type_info on a specific member for details.',
+    {
+      file: z.string().describe('Absolute or workspace-relative file path'),
+      line: z.number().describe('1-based line number'),
+      column: z.number().describe('1-based column number'),
+    },
+    { readOnlyHint: true },
+    async ({ file, line, column }) => {
+      try {
+        const svc = provider.forFile(file)
+        if (!svc) {
+          return { content: [{ type: 'text' as const, text: `No project found for file: ${file}` }], isError: true }
+        }
+        const result = listMembers(svc, file, line, column)
+        if (!result) {
+          return { content: [{ type: 'text' as const, text: 'No members found at this position.' }] }
+        }
+        const text = result
+          .map((m) => `${m.kind === 'method' ? '(method)' : '(property)'} ${m.name}: ${m.type}`)
+          .join('\n')
+        return {
+          content: [{ type: 'text' as const, text }],
+        }
+      } catch (error) {
+        return { isError: true, content: [{ type: 'text' as const, text: `list_members failed: ${error instanceof Error ? error.message : error}` }] }
       }
     },
   )

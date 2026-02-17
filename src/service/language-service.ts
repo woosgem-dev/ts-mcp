@@ -117,6 +117,50 @@ export class TsMcpLanguageService {
     }
   }
 
+  getMembers(fileName: string, line: number, column: number) {
+    const resolved = this.resolveFileName(fileName)
+    const pos = this.resolvePosition(resolved, line, column)
+
+    const program = this.service.getProgram()
+    if (!program) return undefined
+
+    const sourceFile = program.getSourceFile(resolved)
+    if (!sourceFile) return undefined
+
+    const checker = program.getTypeChecker()
+    const node = this.findNodeAtPosition(sourceFile, pos)
+    if (!node) return undefined
+
+    const type = checker.getTypeAtLocation(node)
+    const properties = type.getProperties()
+
+    return properties.map((prop) => {
+      const propType = checker.getTypeOfSymbolAtLocation(prop, node)
+      const typeString = checker.typeToString(propType)
+      const isMethod = propType.getCallSignatures().length > 0
+
+      return {
+        name: prop.getName(),
+        kind: isMethod ? 'method' : 'property',
+        type: typeString,
+      }
+    })
+  }
+
+  private findNodeAtPosition(
+    sourceFile: ts.SourceFile,
+    offset: number,
+  ): ts.Node | undefined {
+    const tsModule = this.ts
+    function find(node: ts.Node): ts.Node | undefined {
+      if (offset >= node.getStart(sourceFile) && offset < node.getEnd()) {
+        return tsModule.forEachChild(node, find) || node
+      }
+      return undefined
+    }
+    return find(sourceFile)
+  }
+
   dispose(): void {
     this.service.dispose()
   }
