@@ -16,7 +16,7 @@ export interface ServerOptions {
 export function createTsMcpServer(workspace: string, options?: ServerOptions) {
   const server = new McpServer({
     name: 'ts-mcp',
-    version: '0.1.0',
+    version: '0.2.0-beta.1',
   })
 
   const tsconfigPaths = options?.projects ?? discoverTsConfigs(workspace)

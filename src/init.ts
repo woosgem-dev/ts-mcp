@@ -21,25 +21,57 @@ ALWAYS prefer ts-mcp tools over Grep/Read:
 `
 
 const SECTION_MARKER = '## TypeScript Code Navigation (ts-mcp)'
+const MCP_SERVER_KEY = 'ts-mcp'
 
 export function initProject(workspace: string): void {
   const claudeDir = path.join(workspace, '.claude')
-  const claudeMdPath = path.join(claudeDir, 'CLAUDE.md')
 
   if (!fs.existsSync(claudeDir)) {
     fs.mkdirSync(claudeDir, { recursive: true })
   }
 
+  setupClaudeMd(claudeDir)
+  setupMcpJson(workspace)
+}
+
+function setupClaudeMd(claudeDir: string): void {
+  const claudeMdPath = path.join(claudeDir, 'CLAUDE.md')
+
   if (fs.existsSync(claudeMdPath)) {
     const existing = fs.readFileSync(claudeMdPath, 'utf-8')
     if (existing.includes(SECTION_MARKER)) {
-      console.log('ts-mcp section already exists in .claude/CLAUDE.md')
+      console.log('✓ .claude/CLAUDE.md — ts-mcp section already exists')
       return
     }
     fs.writeFileSync(claudeMdPath, existing.trimEnd() + '\n\n' + CLAUDE_MD_SNIPPET)
-    console.log('Added ts-mcp section to .claude/CLAUDE.md')
+    console.log('✓ .claude/CLAUDE.md — appended ts-mcp section')
   } else {
     fs.writeFileSync(claudeMdPath, CLAUDE_MD_SNIPPET)
-    console.log('Created .claude/CLAUDE.md with ts-mcp section')
+    console.log('✓ .claude/CLAUDE.md — created')
+  }
+}
+
+function setupMcpJson(workspace: string): void {
+  const mcpJsonPath = path.join(workspace, '.mcp.json')
+
+  const serverConfig = {
+    command: 'ts-mcp',
+    args: [workspace],
+  }
+
+  if (fs.existsSync(mcpJsonPath)) {
+    const existing = JSON.parse(fs.readFileSync(mcpJsonPath, 'utf-8'))
+    if (existing.mcpServers?.[MCP_SERVER_KEY]) {
+      console.log('✓ .mcp.json — ts-mcp server already configured')
+      return
+    }
+    existing.mcpServers = existing.mcpServers ?? {}
+    existing.mcpServers[MCP_SERVER_KEY] = serverConfig
+    fs.writeFileSync(mcpJsonPath, JSON.stringify(existing, null, 2) + '\n')
+    console.log('✓ .mcp.json — appended ts-mcp server')
+  } else {
+    const config = { mcpServers: { [MCP_SERVER_KEY]: serverConfig } }
+    fs.writeFileSync(mcpJsonPath, JSON.stringify(config, null, 2) + '\n')
+    console.log('✓ .mcp.json — created')
   }
 }

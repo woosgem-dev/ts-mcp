@@ -1,4 +1,4 @@
-import ts from 'typescript'
+import type ts from 'typescript'
 import path from 'node:path'
 import { loadTsConfig } from '../project/config-loader'
 import { resolveTypeScript } from '../project/resolve-typescript'
@@ -43,6 +43,7 @@ export class TsMcpLanguageService {
       readDirectory: this.ts.sys.readDirectory,
       directoryExists: this.ts.sys.directoryExists,
       getDirectories: this.ts.sys.getDirectories,
+      realpath: this.ts.sys.realpath,
     }
 
     this.service = this.ts.createLanguageService(
