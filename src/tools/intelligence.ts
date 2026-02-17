@@ -60,15 +60,22 @@ export function signatureHelp(
   if (!help) return undefined
 
   return {
-    signatures: help.items.map((item) => ({
-      label: [...item.prefixDisplayParts, ...item.separatorDisplayParts, ...item.suffixDisplayParts]
-        .map(p => p.text).join(''),
-      documentation: item.documentation.map(d => d.text).join('\n'),
-      parameters: item.parameters.map((p) => ({
-        name: p.displayParts.map(d => d.text).join(''),
-        documentation: p.documentation.map(d => d.text).join('\n'),
-      })),
-    })),
+    signatures: help.items.map((item) => {
+      const parts: Array<{ text: string }> = [...item.prefixDisplayParts]
+      item.parameters.forEach((param, i) => {
+        if (i > 0) parts.push(...item.separatorDisplayParts)
+        parts.push(...param.displayParts)
+      })
+      parts.push(...item.suffixDisplayParts)
+      return {
+        label: parts.map(p => p.text).join(''),
+        documentation: item.documentation.map(d => d.text).join('\n'),
+        parameters: item.parameters.map((p) => ({
+          name: p.displayParts.map(d => d.text).join(''),
+          documentation: p.documentation.map(d => d.text).join('\n'),
+        })),
+      }
+    }),
     activeSignature: help.selectedItemIndex,
     activeParameter: help.argumentIndex,
   }
@@ -162,6 +169,9 @@ export function registerIntelligenceTools(
           return { content: [{ type: 'text' as const, text: `No project found for file: ${file}` }], isError: true }
         }
         const result = getTypeInfo(svc, file, line, column)
+        if (!result) {
+          return { content: [{ type: 'text' as const, text: 'No type information at this position.' }] }
+        }
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
         }
@@ -187,6 +197,9 @@ export function registerIntelligenceTools(
           return { content: [{ type: 'text' as const, text: `No project found for file: ${file}` }], isError: true }
         }
         const result = signatureHelp(svc, file, line, column)
+        if (!result) {
+          return { content: [{ type: 'text' as const, text: 'No signature help at this position.' }] }
+        }
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
         }

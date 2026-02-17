@@ -19,14 +19,12 @@ export function getDiagnostics(
 ): DiagnosticResult[] {
   const ts = svc.getTs()
   const service = svc.getRawService()
-  const files = file ? [svc.resolveFileName(file)] : svc.getProjectFiles()
+  const singleFile = file != null
+  const files = singleFile ? [svc.resolveFileName(file)] : svc.getProjectFiles()
   const results: DiagnosticResult[] = []
 
   for (const fileName of files) {
     const content = svc.getFileContent(fileName) || ts.sys.readFile(fileName) || ''
-    const syntactic = service.getSyntacticDiagnostics(fileName)
-    const semantic = service.getSemanticDiagnostics(fileName)
-    const suggestions = service.getSuggestionDiagnostics(fileName)
 
     const mapDiag = (
       diag: import('typescript').Diagnostic,
@@ -44,18 +42,21 @@ export function getDiagnostics(
       }
     }
 
-    for (const d of syntactic) {
+    for (const d of service.getSyntacticDiagnostics(fileName)) {
       const r = mapDiag(d, 'error')
       if (r) results.push(r)
     }
-    for (const d of semantic) {
+    for (const d of service.getSemanticDiagnostics(fileName)) {
       const severity = d.category === ts.DiagnosticCategory.Error ? 'error' : 'warning'
       const r = mapDiag(d, severity)
       if (r) results.push(r)
     }
-    for (const d of suggestions) {
-      const r = mapDiag(d, 'suggestion')
-      if (r) results.push(r)
+    // Skip suggestions for project-wide scans (expensive + noisy for agents)
+    if (singleFile) {
+      for (const d of service.getSuggestionDiagnostics(fileName)) {
+        const r = mapDiag(d, 'suggestion')
+        if (r) results.push(r)
+      }
     }
   }
 

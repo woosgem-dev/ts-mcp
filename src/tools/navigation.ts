@@ -116,31 +116,31 @@ export function documentSymbols(
   svc: TsMcpLanguageService,
   file: string,
 ): SymbolResult[] {
-  const ts = svc.getTs()
   const fileName = svc.resolveFileName(file)
   const items = svc.getRawService().getNavigationBarItems(fileName)
   const content = svc.getFileContent(fileName)
   const results: SymbolResult[] = []
 
-  function flatten(items: typeof ts.NavigationBarItem extends never ? any[] : any[]) {
-    for (const item of items) {
-      if (item.text === '<global>') {
-        flatten(item.childItems)
-        continue
+  // getNavigationBarItems returns breadcrumb scopes at top level.
+  // The first item with kind 'module' or text '<global>' contains
+  // the actual module-level declarations as childItems.
+  for (const item of items) {
+    if (item.kind === 'module' || item.text === '<global>') {
+      for (const child of item.childItems ?? []) {
+        if (child.kind === 'alias') continue
+        const loc = toLineColumn(content, child.spans[0].start)
+        results.push({
+          name: child.text,
+          kind: child.kind,
+          file: fileName,
+          line: loc.line,
+          column: loc.column,
+        })
       }
-      const loc = toLineColumn(content, item.spans[0].start)
-      results.push({
-        name: item.text,
-        kind: item.kind,
-        file: fileName,
-        line: loc.line,
-        column: loc.column,
-      })
-      if (item.childItems) flatten(item.childItems)
+      break
     }
   }
 
-  flatten(items)
   return results
 }
 

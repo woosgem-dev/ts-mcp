@@ -87,9 +87,10 @@ export function typeHierarchy(
   return implementations.map((impl) => {
     const content = svc.getFileContent(impl.fileName) || ts.sys.readFile(impl.fileName) || ''
     const loc = toLineColumn(content, impl.textSpan.start)
-    const text = content.slice(impl.textSpan.start, impl.textSpan.start + impl.textSpan.length)
+    const name = impl.displayParts?.map(p => p.text).join('') ??
+      content.slice(impl.textSpan.start, impl.textSpan.start + impl.textSpan.length)
     return {
-      name: text,
+      name,
       file: impl.fileName,
       line: loc.line,
       column: loc.column,

@@ -23,6 +23,6 @@ describe('ts-mcp integration', () => {
   it('language service can find definitions', () => {
     const services = instance.provider.all()
     const files = services[0].getProjectFiles()
-    expect(files.length).toBe(4)
+    expect(files.length).toBe(5)
   })
 })
