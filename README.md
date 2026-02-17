@@ -32,7 +32,7 @@ Add to `~/.claude/mcp.json`:
 |------|-------------|
 | `--workspace <path>` | Path to TypeScript project root (default: `cwd`) |
 | `--no-cache` | Bypass the symbol index disk cache |
-| `--watch` | Watch for file changes and update the language service automatically |
+| `--projects <paths>` | Comma-separated list of `tsconfig.json` paths for multi-project workspaces |
 
 ## Tools
 
@@ -54,6 +54,29 @@ Add to `~/.claude/mcp.json`:
 
 ### Diagnostics
 - `diagnostics` — Get TypeScript errors and warnings
+
+## Multi-Project Support
+
+ts-mcp automatically discovers `tsconfig.json` files in your workspace (up to 3 levels deep). When multiple are found, each gets its own language service instance — tools route to the correct project based on file path.
+
+To explicitly specify projects:
+
+```json
+{
+  "mcpServers": {
+    "ts-mcp": {
+      "command": "npx",
+      "args": [
+        "ts-mcp",
+        "--workspace", "/path/to/monorepo",
+        "--projects", "/path/to/monorepo/packages/app/tsconfig.json,/path/to/monorepo/packages/shared/tsconfig.json"
+      ]
+    }
+  }
+}
+```
+
+With a single `tsconfig.json` (or none), behavior is identical to before.
 
 ## Scripts
 

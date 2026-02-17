@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { TsMcpLanguageService } from '../service/language-service'
+import type { ServiceProvider } from '../service/service-provider'
 import { toLineColumn } from '../service/position-utils'
 import { extractJsDoc } from '../service/jsdoc-parser'
 
@@ -126,7 +127,7 @@ export function renameSymbol(
 
 export function registerIntelligenceTools(
   mcpServer: McpServer,
-  svc: TsMcpLanguageService,
+  provider: ServiceProvider,
 ): void {
   mcpServer.tool(
     'get_type_info',
@@ -139,6 +140,10 @@ export function registerIntelligenceTools(
     { readOnlyHint: true },
     async ({ file, line, column }) => {
       try {
+        const svc = provider.forFile(file)
+        if (!svc) {
+          return { content: [{ type: 'text' as const, text: `No project found for file: ${file}` }], isError: true }
+        }
         const result = getTypeInfo(svc, file, line, column)
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
@@ -160,6 +165,10 @@ export function registerIntelligenceTools(
     { readOnlyHint: true },
     async ({ file, line, column }) => {
       try {
+        const svc = provider.forFile(file)
+        if (!svc) {
+          return { content: [{ type: 'text' as const, text: `No project found for file: ${file}` }], isError: true }
+        }
         const result = signatureHelp(svc, file, line, column)
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
@@ -182,6 +191,10 @@ export function registerIntelligenceTools(
     { readOnlyHint: true },
     async ({ file, line, column, newName }) => {
       try {
+        const svc = provider.forFile(file)
+        if (!svc) {
+          return { content: [{ type: 'text' as const, text: `No project found for file: ${file}` }], isError: true }
+        }
         const result = renameSymbol(svc, file, line, column, newName)
         return {
           content: [

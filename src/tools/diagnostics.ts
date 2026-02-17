@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { TsMcpLanguageService } from '../service/language-service'
+import type { ServiceProvider } from '../service/service-provider'
 import { toLineColumn } from '../service/position-utils'
 
 export interface DiagnosticResult {
@@ -63,7 +64,7 @@ export function getDiagnostics(
 
 export function registerDiagnosticsTools(
   mcpServer: McpServer,
-  svc: TsMcpLanguageService,
+  provider: ServiceProvider,
 ): void {
   mcpServer.tool(
     'diagnostics',
@@ -74,9 +75,20 @@ export function registerDiagnosticsTools(
     { readOnlyHint: true },
     async ({ file }) => {
       try {
-        const results = getDiagnostics(svc, file)
-        return {
-          content: [{ type: 'text' as const, text: JSON.stringify(results, null, 2) }],
+        if (file) {
+          const svc = provider.forFile(file)
+          if (!svc) {
+            return { content: [{ type: 'text' as const, text: `No project found for file: ${file}` }], isError: true }
+          }
+          const results = getDiagnostics(svc, file)
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify(results, null, 2) }],
+          }
+        } else {
+          const allResults = provider.all().flatMap(svc => getDiagnostics(svc))
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify(allResults, null, 2) }],
+          }
         }
       } catch (error) {
         return { isError: true, content: [{ type: 'text' as const, text: `diagnostics failed: ${error instanceof Error ? error.message : error}` }] }

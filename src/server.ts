@@ -1,6 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { TsMcpLanguageService } from './service/language-service'
-import { FileWatcher } from './service/file-watcher'
+import { discoverTsConfigs } from './project/tsconfig-discovery'
+import { SingleServiceProvider, MultiServiceProvider } from './service/service-provider'
+import type { ServiceProvider } from './service/service-provider'
 import { registerNavigationTools } from './tools/navigation'
 import { registerImpactTools } from './tools/impact'
 import { registerIntelligenceTools } from './tools/intelligence'
@@ -8,7 +10,7 @@ import { registerDiagnosticsTools } from './tools/diagnostics'
 
 export interface ServerOptions {
   noCache?: boolean
-  watch?: boolean
+  projects?: string[]
 }
 
 export function createTsMcpServer(workspace: string, options?: ServerOptions) {
@@ -17,18 +19,16 @@ export function createTsMcpServer(workspace: string, options?: ServerOptions) {
     version: '0.1.0',
   })
 
-  const languageService = new TsMcpLanguageService(workspace, options?.noCache)
+  const tsconfigPaths = options?.projects ?? discoverTsConfigs(workspace)
 
-  registerNavigationTools(server, languageService)
-  registerImpactTools(server, languageService)
-  registerIntelligenceTools(server, languageService)
-  registerDiagnosticsTools(server, languageService)
+  const provider: ServiceProvider = tsconfigPaths.length <= 1
+    ? new SingleServiceProvider(new TsMcpLanguageService(workspace, options?.noCache))
+    : new MultiServiceProvider(workspace, tsconfigPaths, options?.noCache)
 
-  let fileWatcher: FileWatcher | undefined
-  if (options?.watch) {
-    fileWatcher = new FileWatcher(languageService, workspace)
-    fileWatcher.start()
-  }
+  registerNavigationTools(server, provider)
+  registerImpactTools(server, provider)
+  registerIntelligenceTools(server, provider)
+  registerDiagnosticsTools(server, provider)
 
-  return { server, languageService, fileWatcher }
+  return { server, provider }
 }

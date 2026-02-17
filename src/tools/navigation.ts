@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { TsMcpLanguageService } from '../service/language-service'
+import type { ServiceProvider } from '../service/service-provider'
 import { toLineColumn } from '../service/position-utils'
 
 export interface DefinitionResult {
@@ -120,7 +121,7 @@ export function documentSymbols(
 
 export function registerNavigationTools(
   mcpServer: McpServer,
-  svc: TsMcpLanguageService,
+  provider: ServiceProvider,
 ): void {
   mcpServer.tool(
     'goto_definition',
@@ -133,6 +134,10 @@ export function registerNavigationTools(
     { readOnlyHint: true },
     async ({ file, line, column }) => {
       try {
+        const svc = provider.forFile(file)
+        if (!svc) {
+          return { content: [{ type: 'text' as const, text: `No project found for file: ${file}` }], isError: true }
+        }
         const results = gotoDefinition(svc, file, line, column)
         return {
           content: [
@@ -157,6 +162,10 @@ export function registerNavigationTools(
     { readOnlyHint: true },
     async ({ file, line, column }) => {
       try {
+        const svc = provider.forFile(file)
+        if (!svc) {
+          return { content: [{ type: 'text' as const, text: `No project found for file: ${file}` }], isError: true }
+        }
         const results = findReferences(svc, file, line, column)
         return {
           content: [
@@ -179,10 +188,17 @@ export function registerNavigationTools(
     { readOnlyHint: true },
     async ({ query }) => {
       try {
-        const results = workspaceSymbols(svc, query)
+        const allResults = provider.all().flatMap(s => s.getSymbolIndexer().query(query))
+        const seen = new Set<string>()
+        const deduped = allResults.filter(r => {
+          const key = `${r.name}:${r.file}:${r.line}:${r.column}`
+          if (seen.has(key)) return false
+          seen.add(key)
+          return true
+        })
         return {
           content: [
-            { type: 'text' as const, text: JSON.stringify(results, null, 2) },
+            { type: 'text' as const, text: JSON.stringify(deduped, null, 2) },
             { type: 'text' as const, text: 'Next: Use goto_definition with file/line/column from these results to navigate to the source.' },
           ],
         }
@@ -201,6 +217,10 @@ export function registerNavigationTools(
     { readOnlyHint: true },
     async ({ file }) => {
       try {
+        const svc = provider.forFile(file)
+        if (!svc) {
+          return { content: [{ type: 'text' as const, text: `No project found for file: ${file}` }], isError: true }
+        }
         const results = documentSymbols(svc, file)
         return {
           content: [
