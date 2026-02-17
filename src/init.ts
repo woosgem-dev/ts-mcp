@@ -37,43 +37,24 @@ Tags appear in the \`customTags\` field of \`get_type_info\` responses.
 Define project-specific tags as needed (e.g., \`@ts-mcp-owner\`, \`@ts-mcp-layer\`).
 `
 
-const CLAUDE_MD_REFERENCE = 'See [ts-mcp-settings.md](ts-mcp-settings.md) for TypeScript code navigation tools.'
 const SETTINGS_FILE = 'ts-mcp-settings.md'
 const MCP_SERVER_KEY = 'ts-mcp'
 
 export function initProject(workspace: string): void {
-  const claudeDir = path.join(workspace, '.claude')
+  const rulesDir = path.join(workspace, '.claude', 'rules')
 
-  if (!fs.existsSync(claudeDir)) {
-    fs.mkdirSync(claudeDir, { recursive: true })
+  if (!fs.existsSync(rulesDir)) {
+    fs.mkdirSync(rulesDir, { recursive: true })
   }
 
-  setupSettings(claudeDir)
-  setupClaudeMd(claudeDir)
+  setupSettings(rulesDir)
   setupMcpJson(workspace)
 }
 
-function setupSettings(claudeDir: string): void {
-  const settingsPath = path.join(claudeDir, SETTINGS_FILE)
+function setupSettings(rulesDir: string): void {
+  const settingsPath = path.join(rulesDir, SETTINGS_FILE)
   fs.writeFileSync(settingsPath, SETTINGS_CONTENT)
-  console.log('✓ .claude/ts-mcp-settings.md — written')
-}
-
-function setupClaudeMd(claudeDir: string): void {
-  const claudeMdPath = path.join(claudeDir, 'CLAUDE.md')
-
-  if (fs.existsSync(claudeMdPath)) {
-    const existing = fs.readFileSync(claudeMdPath, 'utf-8')
-    if (existing.includes(SETTINGS_FILE)) {
-      console.log('✓ .claude/CLAUDE.md — reference already exists')
-      return
-    }
-    fs.writeFileSync(claudeMdPath, existing.trimEnd() + '\n\n' + CLAUDE_MD_REFERENCE + '\n')
-    console.log('✓ .claude/CLAUDE.md — appended reference')
-  } else {
-    fs.writeFileSync(claudeMdPath, CLAUDE_MD_REFERENCE + '\n')
-    console.log('✓ .claude/CLAUDE.md — created')
-  }
+  console.log('✓ .claude/rules/ts-mcp-settings.md — written')
 }
 
 function setupMcpJson(workspace: string): void {
