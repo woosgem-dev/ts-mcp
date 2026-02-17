@@ -39,6 +39,7 @@ const INDEX_FILE = 'index.json'
 export class SymbolIndexer {
   private symbolMap = new Map<string, InternalSymbol[]>()
   private cacheDir: string
+  private initialized = false
 
   constructor(
     private svc: TsMcpLanguageService,
@@ -49,16 +50,25 @@ export class SymbolIndexer {
   }
 
   initialize(): void {
+    if (this.initialized) return
     if (!this.noCache && this.loadCache()) {
+      this.initialized = true
       return
     }
     this.buildIndex()
     if (!this.noCache) {
       this.saveCache()
     }
+    this.initialized = true
+  }
+
+  invalidate(): void {
+    this.symbolMap.clear()
+    this.initialized = false
   }
 
   query(pattern: string): IndexedSymbol[] {
+    this.initialize()
     const entries = this.symbolMap.get(pattern.toLowerCase())
     if (!entries) return []
     return entries.map((s) => ({

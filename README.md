@@ -32,6 +32,7 @@ Add to `~/.claude/mcp.json`:
 |------|-------------|
 | `--workspace <path>` | Path to TypeScript project root (default: `cwd`) |
 | `--no-cache` | Bypass the symbol index disk cache |
+| `--watch` | Watch for file changes and update the language service automatically |
 
 ## Tools
 

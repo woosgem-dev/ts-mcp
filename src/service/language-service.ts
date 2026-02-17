@@ -94,6 +94,29 @@ export class TsMcpLanguageService {
     return this.symbolIndexer
   }
 
+  updateFile(fileName: string, content: string): void {
+    const resolved = this.resolveFileName(fileName)
+    const existing = this.files.get(resolved)
+    if (existing) {
+      existing.version++
+      existing.content = content
+    } else {
+      this.files.set(resolved, { version: 0, content })
+    }
+    this.invalidateSymbolIndex()
+  }
+
+  removeFile(fileName: string): void {
+    this.files.delete(this.resolveFileName(fileName))
+    this.invalidateSymbolIndex()
+  }
+
+  private invalidateSymbolIndex(): void {
+    if (this.symbolIndexer) {
+      this.symbolIndexer.invalidate()
+    }
+  }
+
   dispose(): void {
     this.service.dispose()
   }
