@@ -18,6 +18,22 @@ ALWAYS prefer ts-mcp tools over Grep/Read:
 - Type/docs info → \`get_type_info\`
 - Rename → \`rename_symbol\`
 - Errors → \`diagnostics\`
+
+### Custom TSDoc tags
+
+\`get_type_info\` automatically extracts \`@ts-mcp-*\` tags from JSDoc.
+Use these to embed agent-readable metadata directly in source code:
+
+\`\`\`typescript
+/**
+ * @ts-mcp-context Requires authenticated session
+ * @ts-mcp-related validateToken, refreshSession
+ * @ts-mcp-risk Modifies user state — call impact_analysis before changing
+ */
+\`\`\`
+
+Tags appear in the \`customTags\` field of \`get_type_info\` responses.
+Define project-specific tags as needed (e.g., \`@ts-mcp-owner\`, \`@ts-mcp-layer\`).
 `
 
 const SECTION_MARKER = '## TypeScript Code Navigation (ts-mcp)'
