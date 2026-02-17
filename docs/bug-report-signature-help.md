@@ -55,3 +55,21 @@ MCP response and fails schema validation.
 Add null/undefined guards in the signature_help handler before constructing
 the MCP response. Ensure all required fields have fallback values (e.g.,
 empty string for `text`).
+
+## Retest (2026-02-17)
+
+Retested after reported fix — **bug still present**.
+
+Tested 6 function call positions across 3 files:
+
+| File | Line | Col | Function | Result |
+|------|------|-----|----------|--------|
+| `src/app/api/chat/route.ts` | 38 | 32 | `request.json()` | FAIL -32602 |
+| `src/app/api/chat/route.ts` | 45 | 10 | `NextResponse.json()` | FAIL |
+| `src/app/api/skills/route.ts` | 66 | 29 | `NextResponse.json()` | FAIL -32602 |
+| `scripts/crawl-skills.ts` | 210 | 51 | `fetchWithTimeout()` | FAIL |
+| `scripts/crawl-skills.ts` | 212 | 24 | `cheerio.load()` | FAIL -32602 |
+| `scripts/crawl-skills.ts` | 346 | 36 | `response.json()` | FAIL |
+
+All 6 tests failed with the same MCP error -32602 (undefined `text` in response).
+The error is identical to the original report — the fix did not resolve this issue.
