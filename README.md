@@ -38,6 +38,7 @@ Add to `~/.claude/mcp.json`:
 
 ### Navigation
 - `goto_definition` — Jump to a symbol's definition by position
+- `goto_type_definition` — Jump to the type declaration of a symbol by position
 - `find_references` — Find all usages of a symbol by position
 - `workspace_symbols` — Find a symbol across the project by exact name
 - `document_symbols` — List all symbols defined in a file
