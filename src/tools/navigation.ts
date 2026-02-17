@@ -43,6 +43,31 @@ export function gotoDefinition(
   })
 }
 
+export function gotoTypeDefinition(
+  svc: TsMcpLanguageService,
+  file: string,
+  line: number,
+  column: number,
+): DefinitionResult[] {
+  const fileName = svc.resolveFileName(file)
+  const position = svc.resolvePosition(fileName, line, column)
+  const definitions = svc.getRawService().getTypeDefinitionAtPosition(fileName, position)
+
+  if (!definitions) return []
+
+  return definitions.map((def) => {
+    const content = svc.getFileContent(def.fileName) || svc.getTs().sys.readFile(def.fileName) || ''
+    const loc = toLineColumn(content, def.textSpan.start)
+    const text = content.slice(def.textSpan.start, def.textSpan.start + def.textSpan.length)
+    return {
+      file: def.fileName,
+      line: loc.line,
+      column: loc.column,
+      text,
+    }
+  })
+}
+
 export function findReferences(
   svc: TsMcpLanguageService,
   file: string,
@@ -147,6 +172,34 @@ export function registerNavigationTools(
         }
       } catch (error) {
         return { isError: true, content: [{ type: 'text' as const, text: `goto_definition failed: ${error instanceof Error ? error.message : error}` }] }
+      }
+    },
+  )
+
+  mcpServer.tool(
+    'goto_type_definition',
+    'Jump to the type declaration of a symbol. Given a variable, navigates to where its type is defined (not where the variable is declared). Use after goto_definition when you need the type\'s source. Requires file, line, column.',
+    {
+      file: z.string().describe('Absolute or workspace-relative file path'),
+      line: z.number().describe('1-based line number'),
+      column: z.number().describe('1-based column number'),
+    },
+    { readOnlyHint: true },
+    async ({ file, line, column }) => {
+      try {
+        const svc = provider.forFile(file)
+        if (!svc) {
+          return { content: [{ type: 'text' as const, text: `No project found for file: ${file}` }], isError: true }
+        }
+        const results = gotoTypeDefinition(svc, file, line, column)
+        return {
+          content: [
+            { type: 'text' as const, text: JSON.stringify(results, null, 2) },
+            { type: 'text' as const, text: 'Next: Use find_references to find all usages of this type, or get_type_info to inspect its details.' },
+          ],
+        }
+      } catch (error) {
+        return { isError: true, content: [{ type: 'text' as const, text: `goto_type_definition failed: ${error instanceof Error ? error.message : error}` }] }
       }
     },
   )
