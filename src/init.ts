@@ -1,10 +1,9 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-const CLAUDE_MD_SNIPPET = `## TypeScript Code Navigation (ts-mcp)
+const SETTINGS_CONTENT = `# TypeScript Code Navigation (ts-mcp)
 
-This project has ts-mcp installed. For TypeScript code navigation,
-ALWAYS prefer ts-mcp tools over Grep/Read:
+For TypeScript code navigation, ALWAYS prefer ts-mcp tools over Grep/Read:
 
 - Symbol definition → \`goto_definition\` (not Grep)
 - Symbol references → \`find_references\` (not Grep)
@@ -19,7 +18,7 @@ ALWAYS prefer ts-mcp tools over Grep/Read:
 - Rename → \`rename_symbol\`
 - Errors → \`diagnostics\`
 
-### Custom TSDoc tags
+## Custom TSDoc tags
 
 \`get_type_info\` automatically extracts \`@ts-mcp-*\` tags from JSDoc.
 Use these to embed agent-readable metadata directly in source code:
@@ -36,7 +35,8 @@ Tags appear in the \`customTags\` field of \`get_type_info\` responses.
 Define project-specific tags as needed (e.g., \`@ts-mcp-owner\`, \`@ts-mcp-layer\`).
 `
 
-const SECTION_MARKER = '## TypeScript Code Navigation (ts-mcp)'
+const CLAUDE_MD_REFERENCE = 'See [ts-mcp-settings.md](ts-mcp-settings.md) for TypeScript code navigation tools.'
+const SETTINGS_FILE = 'ts-mcp-settings.md'
 const MCP_SERVER_KEY = 'ts-mcp'
 
 export function initProject(workspace: string): void {
@@ -46,8 +46,15 @@ export function initProject(workspace: string): void {
     fs.mkdirSync(claudeDir, { recursive: true })
   }
 
+  setupSettings(claudeDir)
   setupClaudeMd(claudeDir)
   setupMcpJson(workspace)
+}
+
+function setupSettings(claudeDir: string): void {
+  const settingsPath = path.join(claudeDir, SETTINGS_FILE)
+  fs.writeFileSync(settingsPath, SETTINGS_CONTENT)
+  console.log('✓ .claude/ts-mcp-settings.md — written')
 }
 
 function setupClaudeMd(claudeDir: string): void {
@@ -55,14 +62,14 @@ function setupClaudeMd(claudeDir: string): void {
 
   if (fs.existsSync(claudeMdPath)) {
     const existing = fs.readFileSync(claudeMdPath, 'utf-8')
-    if (existing.includes(SECTION_MARKER)) {
-      console.log('✓ .claude/CLAUDE.md — ts-mcp section already exists')
+    if (existing.includes(SETTINGS_FILE)) {
+      console.log('✓ .claude/CLAUDE.md — reference already exists')
       return
     }
-    fs.writeFileSync(claudeMdPath, existing.trimEnd() + '\n\n' + CLAUDE_MD_SNIPPET)
-    console.log('✓ .claude/CLAUDE.md — appended ts-mcp section')
+    fs.writeFileSync(claudeMdPath, existing.trimEnd() + '\n\n' + CLAUDE_MD_REFERENCE + '\n')
+    console.log('✓ .claude/CLAUDE.md — appended reference')
   } else {
-    fs.writeFileSync(claudeMdPath, CLAUDE_MD_SNIPPET)
+    fs.writeFileSync(claudeMdPath, CLAUDE_MD_REFERENCE + '\n')
     console.log('✓ .claude/CLAUDE.md — created')
   }
 }
