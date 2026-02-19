@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { TsMcpLanguageService } from '../service/language-service'
 import type { ServiceProvider } from '../service/service-provider'
 import { toLineColumn } from '../service/position-utils'
+import { jsonResponse, errorResponse, noProjectResponse } from './response'
 
 export interface DiagnosticResult {
   file: string
@@ -24,7 +25,7 @@ export function getDiagnostics(
   const results: DiagnosticResult[] = []
 
   for (const fileName of files) {
-    const content = svc.getFileContent(fileName) || ts.sys.readFile(fileName) || ''
+    const content = svc.readFileContent(fileName)
 
     const mapDiag = (
       diag: import('typescript').Diagnostic,
@@ -78,21 +79,13 @@ export function registerDiagnosticsTools(
       try {
         if (file) {
           const svc = provider.forFile(file)
-          if (!svc) {
-            return { content: [{ type: 'text' as const, text: `No project found for file: ${file}` }], isError: true }
-          }
-          const results = getDiagnostics(svc, file)
-          return {
-            content: [{ type: 'text' as const, text: JSON.stringify(results, null, 2) }],
-          }
-        } else {
-          const allResults = provider.all().flatMap(svc => getDiagnostics(svc))
-          return {
-            content: [{ type: 'text' as const, text: JSON.stringify(allResults, null, 2) }],
-          }
+          if (!svc) return noProjectResponse(file)
+          return jsonResponse(getDiagnostics(svc, file))
         }
+        const allResults = provider.all().flatMap(svc => getDiagnostics(svc))
+        return jsonResponse(allResults)
       } catch (error) {
-        return { isError: true, content: [{ type: 'text' as const, text: `diagnostics failed: ${error instanceof Error ? error.message : error}` }] }
+        return errorResponse('diagnostics', error)
       }
     },
   )

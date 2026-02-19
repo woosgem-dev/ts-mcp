@@ -4,6 +4,7 @@ import type { TsMcpLanguageService } from '../service/language-service'
 import type { ServiceProvider } from '../service/service-provider'
 import { toLineColumn } from '../service/position-utils'
 import { analyzeImpact } from '../service/impact-analyzer'
+import { jsonResponse, errorResponse, noProjectResponse } from './response'
 
 export interface CallHierarchyResult {
   from: string
@@ -36,27 +37,17 @@ export function callHierarchy(
         : service.provideCallHierarchyOutgoingCalls(item.file, item.selectionSpan.start)
 
     for (const call of calls) {
-      if (direction === 'incoming') {
-        const incoming = call as import('typescript').CallHierarchyIncomingCall
-        const content = svc.getFileContent(incoming.from.file) || svc.getTs().sys.readFile(incoming.from.file) || ''
-        const loc = toLineColumn(content, incoming.from.selectionSpan.start)
-        results.push({
-          from: incoming.from.name,
-          fromFile: incoming.from.file,
-          line: loc.line,
-          column: loc.column,
-        })
-      } else {
-        const outgoing = call as import('typescript').CallHierarchyOutgoingCall
-        const content = svc.getFileContent(outgoing.to.file) || svc.getTs().sys.readFile(outgoing.to.file) || ''
-        const loc = toLineColumn(content, outgoing.to.selectionSpan.start)
-        results.push({
-          from: outgoing.to.name,
-          fromFile: outgoing.to.file,
-          line: loc.line,
-          column: loc.column,
-        })
-      }
+      const target = direction === 'incoming'
+        ? (call as import('typescript').CallHierarchyIncomingCall).from
+        : (call as import('typescript').CallHierarchyOutgoingCall).to
+      const content = svc.readFileContent(target.file)
+      const loc = toLineColumn(content, target.selectionSpan.start)
+      results.push({
+        from: target.name,
+        fromFile: target.file,
+        line: loc.line,
+        column: loc.column,
+      })
     }
   }
 
@@ -77,7 +68,6 @@ export function typeHierarchy(
   line: number,
   column: number,
 ): TypeHierarchyResult[] {
-  const ts = svc.getTs()
   const fileName = svc.resolveFileName(file)
   const position = svc.resolvePosition(fileName, line, column)
   const implementations = svc.getRawService().getImplementationAtPosition(fileName, position)
@@ -85,7 +75,7 @@ export function typeHierarchy(
   if (!implementations) return []
 
   return implementations.map((impl) => {
-    const content = svc.getFileContent(impl.fileName) || ts.sys.readFile(impl.fileName) || ''
+    const content = svc.readFileContent(impl.fileName)
     const loc = toLineColumn(content, impl.textSpan.start)
     const name = impl.displayParts?.map(p => p.text).join('') ??
       content.slice(impl.textSpan.start, impl.textSpan.start + impl.textSpan.length)
@@ -116,15 +106,11 @@ export function registerImpactTools(
     async ({ file, line, column, direction }) => {
       try {
         const svc = provider.forFile(file)
-        if (!svc) {
-          return { content: [{ type: 'text' as const, text: `No project found for file: ${file}` }], isError: true }
-        }
+        if (!svc) return noProjectResponse(file)
         const results = callHierarchy(svc, file, line, column, direction)
-        return {
-          content: [{ type: 'text' as const, text: JSON.stringify(results, null, 2) }],
-        }
+        return jsonResponse(results)
       } catch (error) {
-        return { isError: true, content: [{ type: 'text' as const, text: `call_hierarchy failed: ${error instanceof Error ? error.message : error}` }] }
+        return errorResponse('call_hierarchy', error)
       }
     },
   )
@@ -141,15 +127,11 @@ export function registerImpactTools(
     async ({ file, line, column }) => {
       try {
         const svc = provider.forFile(file)
-        if (!svc) {
-          return { content: [{ type: 'text' as const, text: `No project found for file: ${file}` }], isError: true }
-        }
+        if (!svc) return noProjectResponse(file)
         const results = typeHierarchy(svc, file, line, column)
-        return {
-          content: [{ type: 'text' as const, text: JSON.stringify(results, null, 2) }],
-        }
+        return jsonResponse(results)
       } catch (error) {
-        return { isError: true, content: [{ type: 'text' as const, text: `type_hierarchy failed: ${error instanceof Error ? error.message : error}` }] }
+        return errorResponse('type_hierarchy', error)
       }
     },
   )
@@ -166,15 +148,11 @@ export function registerImpactTools(
     async ({ file, line, column }) => {
       try {
         const svc = provider.forFile(file)
-        if (!svc) {
-          return { content: [{ type: 'text' as const, text: `No project found for file: ${file}` }], isError: true }
-        }
+        if (!svc) return noProjectResponse(file)
         const result = analyzeImpact(svc, file, line, column)
-        return {
-          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
-        }
+        return jsonResponse(result)
       } catch (error) {
-        return { isError: true, content: [{ type: 'text' as const, text: `impact_analysis failed: ${error instanceof Error ? error.message : error}` }] }
+        return errorResponse('impact_analysis', error)
       }
     },
   )

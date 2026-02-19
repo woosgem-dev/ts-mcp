@@ -4,6 +4,7 @@ import type { TsMcpLanguageService } from '../service/language-service'
 import type { ServiceProvider } from '../service/service-provider'
 import { toLineColumn } from '../service/position-utils'
 import { extractJsDoc } from '../service/jsdoc-parser'
+import { textContent, jsonResponse, errorResponse, noProjectResponse } from './response'
 
 export interface TypeInfoResult {
   displayString: string
@@ -119,7 +120,7 @@ export function renameSymbol(
     oldName,
     newName,
     locations: renameLocations.map((loc) => {
-      const fileContent = svc.getFileContent(loc.fileName) || svc.getTs().sys.readFile(loc.fileName) || ''
+      const fileContent = svc.readFileContent(loc.fileName)
       const locPos = toLineColumn(fileContent, loc.textSpan.start)
       const text = fileContent.slice(loc.textSpan.start, loc.textSpan.start + loc.textSpan.length)
       return {
@@ -165,18 +166,14 @@ export function registerIntelligenceTools(
     async ({ file, line, column }) => {
       try {
         const svc = provider.forFile(file)
-        if (!svc) {
-          return { content: [{ type: 'text' as const, text: `No project found for file: ${file}` }], isError: true }
-        }
+        if (!svc) return noProjectResponse(file)
         const result = getTypeInfo(svc, file, line, column)
         if (!result) {
-          return { content: [{ type: 'text' as const, text: 'No type information at this position.' }] }
+          return { content: [textContent('No type information at this position.')] }
         }
-        return {
-          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
-        }
+        return jsonResponse(result)
       } catch (error) {
-        return { isError: true, content: [{ type: 'text' as const, text: `get_type_info failed: ${error instanceof Error ? error.message : error}` }] }
+        return errorResponse('get_type_info', error)
       }
     },
   )
@@ -193,18 +190,14 @@ export function registerIntelligenceTools(
     async ({ file, line, column }) => {
       try {
         const svc = provider.forFile(file)
-        if (!svc) {
-          return { content: [{ type: 'text' as const, text: `No project found for file: ${file}` }], isError: true }
-        }
+        if (!svc) return noProjectResponse(file)
         const result = signatureHelp(svc, file, line, column)
         if (!result) {
-          return { content: [{ type: 'text' as const, text: 'No signature help at this position.' }] }
+          return { content: [textContent('No signature help at this position.')] }
         }
-        return {
-          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
-        }
+        return jsonResponse(result)
       } catch (error) {
-        return { isError: true, content: [{ type: 'text' as const, text: `signature_help failed: ${error instanceof Error ? error.message : error}` }] }
+        return errorResponse('signature_help', error)
       }
     },
   )
@@ -222,18 +215,11 @@ export function registerIntelligenceTools(
     async ({ file, line, column, newName }) => {
       try {
         const svc = provider.forFile(file)
-        if (!svc) {
-          return { content: [{ type: 'text' as const, text: `No project found for file: ${file}` }], isError: true }
-        }
+        if (!svc) return noProjectResponse(file)
         const result = renameSymbol(svc, file, line, column, newName)
-        return {
-          content: [
-            { type: 'text' as const, text: JSON.stringify(result, null, 2) },
-            { type: 'text' as const, text: 'Apply all the file changes listed above. Run diagnostics after applying to verify no errors were introduced.' },
-          ],
-        }
+        return jsonResponse(result, 'Apply all the file changes listed above. Run diagnostics after applying to verify no errors were introduced.')
       } catch (error) {
-        return { isError: true, content: [{ type: 'text' as const, text: `rename_symbol failed: ${error instanceof Error ? error.message : error}` }] }
+        return errorResponse('rename_symbol', error)
       }
     },
   )
@@ -250,21 +236,17 @@ export function registerIntelligenceTools(
     async ({ file, line, column }) => {
       try {
         const svc = provider.forFile(file)
-        if (!svc) {
-          return { content: [{ type: 'text' as const, text: `No project found for file: ${file}` }], isError: true }
-        }
+        if (!svc) return noProjectResponse(file)
         const result = listMembers(svc, file, line, column)
         if (!result) {
-          return { content: [{ type: 'text' as const, text: 'No members found at this position.' }] }
+          return { content: [textContent('No members found at this position.')] }
         }
         const text = result
           .map((m) => `${m.kind === 'method' ? '(method)' : '(property)'} ${m.name}: ${m.type}`)
           .join('\n')
-        return {
-          content: [{ type: 'text' as const, text }],
-        }
+        return { content: [textContent(text)] }
       } catch (error) {
-        return { isError: true, content: [{ type: 'text' as const, text: `list_members failed: ${error instanceof Error ? error.message : error}` }] }
+        return errorResponse('list_members', error)
       }
     },
   )

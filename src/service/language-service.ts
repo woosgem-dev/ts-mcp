@@ -2,6 +2,7 @@ import type ts from 'typescript'
 import path from 'node:path'
 import { loadTsConfig } from '../project/config-loader'
 import { resolveTypeScript } from '../project/resolve-typescript'
+import { toOffset } from './position-utils'
 import { SymbolIndexer } from './symbol-indexer'
 
 export class TsMcpLanguageService {
@@ -60,6 +61,10 @@ export class TsMcpLanguageService {
     return this.files.get(fileName)?.content ?? ''
   }
 
+  readFileContent(fileName: string): string {
+    return this.getFileContent(fileName) || this.ts.sys.readFile(fileName) || ''
+  }
+
   getRawService(): ts.LanguageService {
     return this.service
   }
@@ -69,17 +74,7 @@ export class TsMcpLanguageService {
   }
 
   resolvePosition(fileName: string, line: number, column: number): number {
-    let content = this.getFileContent(fileName)
-    if (!content) {
-      content = this.ts.sys.readFile(fileName) ?? ''
-    }
-    const lines = content.split('\n')
-    let offset = 0
-    const maxLine = Math.min(line - 1, lines.length)
-    for (let i = 0; i < maxLine; i++) {
-      offset += lines[i].length + 1
-    }
-    return offset + column - 1
+    return toOffset(this.readFileContent(fileName), line, column)
   }
 
   resolveFileName(filePath: string): string {

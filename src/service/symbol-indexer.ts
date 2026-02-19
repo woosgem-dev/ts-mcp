@@ -103,10 +103,9 @@ export class SymbolIndexer {
 
   private buildIndex(): void {
     this.symbolMap.clear()
-    const ts = this.svc.getTs()
 
     for (const fileName of this.svc.getProjectFiles()) {
-      const content = this.svc.getFileContent(fileName) || ts.sys.readFile(fileName) || ''
+      const content = this.svc.readFileContent(fileName)
       const items = this.svc.getRawService().getNavigationBarItems(fileName)
       this.flattenNavItems(items, fileName, content)
     }

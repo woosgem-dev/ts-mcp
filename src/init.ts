@@ -59,25 +59,17 @@ function setupSettings(rulesDir: string): void {
 
 function setupMcpJson(workspace: string): void {
   const mcpJsonPath = path.join(workspace, '.mcp.json')
+  const config = fs.existsSync(mcpJsonPath)
+    ? JSON.parse(fs.readFileSync(mcpJsonPath, 'utf-8'))
+    : {}
 
-  const serverConfig = {
-    command: 'ts-mcp',
-    args: [workspace],
+  if (config.mcpServers?.[MCP_SERVER_KEY]) {
+    console.log('✓ .mcp.json — ts-mcp server already configured')
+    return
   }
 
-  if (fs.existsSync(mcpJsonPath)) {
-    const existing = JSON.parse(fs.readFileSync(mcpJsonPath, 'utf-8'))
-    if (existing.mcpServers?.[MCP_SERVER_KEY]) {
-      console.log('✓ .mcp.json — ts-mcp server already configured')
-      return
-    }
-    existing.mcpServers = existing.mcpServers ?? {}
-    existing.mcpServers[MCP_SERVER_KEY] = serverConfig
-    fs.writeFileSync(mcpJsonPath, JSON.stringify(existing, null, 2) + '\n')
-    console.log('✓ .mcp.json — appended ts-mcp server')
-  } else {
-    const config = { mcpServers: { [MCP_SERVER_KEY]: serverConfig } }
-    fs.writeFileSync(mcpJsonPath, JSON.stringify(config, null, 2) + '\n')
-    console.log('✓ .mcp.json — created')
-  }
+  config.mcpServers = config.mcpServers ?? {}
+  config.mcpServers[MCP_SERVER_KEY] = { command: 'ts-mcp', args: [workspace] }
+  fs.writeFileSync(mcpJsonPath, JSON.stringify(config, null, 2) + '\n')
+  console.log('✓ .mcp.json — configured')
 }

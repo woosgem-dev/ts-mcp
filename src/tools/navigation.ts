@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { TsMcpLanguageService } from '../service/language-service'
 import type { ServiceProvider } from '../service/service-provider'
 import { toLineColumn } from '../service/position-utils'
+import { jsonResponse, errorResponse, noProjectResponse } from './response'
 
 export interface DefinitionResult {
   file: string
@@ -18,20 +19,14 @@ export interface ReferenceResult {
   text: string
 }
 
-export function gotoDefinition(
+function mapDefinitions(
   svc: TsMcpLanguageService,
-  file: string,
-  line: number,
-  column: number,
+  definitions: ReadonlyArray<{ fileName: string; textSpan: { start: number; length: number } }> | undefined,
 ): DefinitionResult[] {
-  const fileName = svc.resolveFileName(file)
-  const position = svc.resolvePosition(fileName, line, column)
-  const definitions = svc.getRawService().getDefinitionAtPosition(fileName, position)
-
   if (!definitions) return []
 
   return definitions.map((def) => {
-    const content = svc.getFileContent(def.fileName) || svc.getTs().sys.readFile(def.fileName) || ''
+    const content = svc.readFileContent(def.fileName)
     const loc = toLineColumn(content, def.textSpan.start)
     const text = content.slice(def.textSpan.start, def.textSpan.start + def.textSpan.length)
     return {
@@ -43,6 +38,17 @@ export function gotoDefinition(
   })
 }
 
+export function gotoDefinition(
+  svc: TsMcpLanguageService,
+  file: string,
+  line: number,
+  column: number,
+): DefinitionResult[] {
+  const fileName = svc.resolveFileName(file)
+  const position = svc.resolvePosition(fileName, line, column)
+  return mapDefinitions(svc, svc.getRawService().getDefinitionAtPosition(fileName, position))
+}
+
 export function gotoTypeDefinition(
   svc: TsMcpLanguageService,
   file: string,
@@ -51,21 +57,7 @@ export function gotoTypeDefinition(
 ): DefinitionResult[] {
   const fileName = svc.resolveFileName(file)
   const position = svc.resolvePosition(fileName, line, column)
-  const definitions = svc.getRawService().getTypeDefinitionAtPosition(fileName, position)
-
-  if (!definitions) return []
-
-  return definitions.map((def) => {
-    const content = svc.getFileContent(def.fileName) || svc.getTs().sys.readFile(def.fileName) || ''
-    const loc = toLineColumn(content, def.textSpan.start)
-    const text = content.slice(def.textSpan.start, def.textSpan.start + def.textSpan.length)
-    return {
-      file: def.fileName,
-      line: loc.line,
-      column: loc.column,
-      text,
-    }
-  })
+  return mapDefinitions(svc, svc.getRawService().getTypeDefinitionAtPosition(fileName, position))
 }
 
 export function findReferences(
@@ -83,7 +75,7 @@ export function findReferences(
   const results: ReferenceResult[] = []
   for (const group of refs) {
     for (const ref of group.references) {
-      const content = svc.getFileContent(ref.fileName) || svc.getTs().sys.readFile(ref.fileName) || ''
+      const content = svc.readFileContent(ref.fileName)
       const loc = toLineColumn(content, ref.textSpan.start)
       const text = content.slice(ref.textSpan.start, ref.textSpan.start + ref.textSpan.length)
       results.push({
@@ -160,18 +152,11 @@ export function registerNavigationTools(
     async ({ file, line, column }) => {
       try {
         const svc = provider.forFile(file)
-        if (!svc) {
-          return { content: [{ type: 'text' as const, text: `No project found for file: ${file}` }], isError: true }
-        }
+        if (!svc) return noProjectResponse(file)
         const results = gotoDefinition(svc, file, line, column)
-        return {
-          content: [
-            { type: 'text' as const, text: JSON.stringify(results, null, 2) },
-            { type: 'text' as const, text: 'Next: Use find_references to find all usages, or get_type_info to inspect the type at this position.' },
-          ],
-        }
+        return jsonResponse(results, 'Next: Use find_references to find all usages, or get_type_info to inspect the type at this position.')
       } catch (error) {
-        return { isError: true, content: [{ type: 'text' as const, text: `goto_definition failed: ${error instanceof Error ? error.message : error}` }] }
+        return errorResponse('goto_definition', error)
       }
     },
   )
@@ -188,18 +173,11 @@ export function registerNavigationTools(
     async ({ file, line, column }) => {
       try {
         const svc = provider.forFile(file)
-        if (!svc) {
-          return { content: [{ type: 'text' as const, text: `No project found for file: ${file}` }], isError: true }
-        }
+        if (!svc) return noProjectResponse(file)
         const results = gotoTypeDefinition(svc, file, line, column)
-        return {
-          content: [
-            { type: 'text' as const, text: JSON.stringify(results, null, 2) },
-            { type: 'text' as const, text: 'Next: Use find_references to find all usages of this type, or get_type_info to inspect its details.' },
-          ],
-        }
+        return jsonResponse(results, 'Next: Use find_references to find all usages of this type, or get_type_info to inspect its details.')
       } catch (error) {
-        return { isError: true, content: [{ type: 'text' as const, text: `goto_type_definition failed: ${error instanceof Error ? error.message : error}` }] }
+        return errorResponse('goto_type_definition', error)
       }
     },
   )
@@ -216,18 +194,11 @@ export function registerNavigationTools(
     async ({ file, line, column }) => {
       try {
         const svc = provider.forFile(file)
-        if (!svc) {
-          return { content: [{ type: 'text' as const, text: `No project found for file: ${file}` }], isError: true }
-        }
+        if (!svc) return noProjectResponse(file)
         const results = findReferences(svc, file, line, column)
-        return {
-          content: [
-            { type: 'text' as const, text: JSON.stringify(results, null, 2) },
-            { type: 'text' as const, text: 'Next: Use impact_analysis before modifying this symbol to assess blast radius.' },
-          ],
-        }
+        return jsonResponse(results, 'Next: Use impact_analysis before modifying this symbol to assess blast radius.')
       } catch (error) {
-        return { isError: true, content: [{ type: 'text' as const, text: `find_references failed: ${error instanceof Error ? error.message : error}` }] }
+        return errorResponse('find_references', error)
       }
     },
   )
@@ -249,14 +220,9 @@ export function registerNavigationTools(
           seen.add(key)
           return true
         })
-        return {
-          content: [
-            { type: 'text' as const, text: JSON.stringify(deduped, null, 2) },
-            { type: 'text' as const, text: 'Next: Use goto_definition with file/line/column from these results to navigate to the source.' },
-          ],
-        }
+        return jsonResponse(deduped, 'Next: Use goto_definition with file/line/column from these results to navigate to the source.')
       } catch (error) {
-        return { isError: true, content: [{ type: 'text' as const, text: `workspace_symbols failed: ${error instanceof Error ? error.message : error}` }] }
+        return errorResponse('workspace_symbols', error)
       }
     },
   )
@@ -271,18 +237,11 @@ export function registerNavigationTools(
     async ({ file }) => {
       try {
         const svc = provider.forFile(file)
-        if (!svc) {
-          return { content: [{ type: 'text' as const, text: `No project found for file: ${file}` }], isError: true }
-        }
+        if (!svc) return noProjectResponse(file)
         const results = documentSymbols(svc, file)
-        return {
-          content: [
-            { type: 'text' as const, text: JSON.stringify(results, null, 2) },
-            { type: 'text' as const, text: 'Next: Use workspace_symbols with an exact symbol name to find it across the project, or goto_definition to jump to its source.' },
-          ],
-        }
+        return jsonResponse(results, 'Next: Use workspace_symbols with an exact symbol name to find it across the project, or goto_definition to jump to its source.')
       } catch (error) {
-        return { isError: true, content: [{ type: 'text' as const, text: `document_symbols failed: ${error instanceof Error ? error.message : error}` }] }
+        return errorResponse('document_symbols', error)
       }
     },
   )
